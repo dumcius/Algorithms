@@ -1,0 +1,114 @@
+#include <iostream>
+using namespace std;
+
+/*
+* Algorithm Written by Povilas Dumcius
+* Cardiff University
+* MUSL
+* 2021-Feb-03
+* 
+* Code takes in two inputs and solves for 4 unknown real numbers within set limits.
+* For this instance function is used to select frequency variables for the Si5151 I2C board.
+*/
+
+
+/* 
+ int MULTIPLIER  =  Range: 15 to 90
+ int DIVIDER     =  Range: 4  to 900
+ int DIVIDER_NUM =  Range: 0  to 1,048,575
+ int DIVIDER_DEN =  Range: 1  to 1,048,57
+
+ Formula : OUTPUT Frequency = 25e6 * MULTIPLIER / (DIVIDER + N/D)
+*/
+
+ float FREQUENCY; //MHz
+ float DEVIATION; //MHz
+ int solutionNumberLimit = 1;
+
+int main() 
+{
+	cout << endl;
+	cout << " Welcome to Si5351 I2C Clock Frequency Calculator!" << endl;
+	cout << " Please enter values in MHz" << endl;
+	cout << endl;
+	cout << " Input your desired frequency: ";  cin >> FREQUENCY;
+	cout << " Please enter maximum error margin: ";  cin >> DEVIATION; cout << endl;
+
+	cout << endl;
+	const float FREQUENCY_FULL_LOW = (FREQUENCY * 1000000) - (DEVIATION * 1000000);
+	const float FREQUENCY_FULL_HIGH = (FREQUENCY * 1000000) + (DEVIATION * 1000000);
+
+	float DIVISION_1 = 0;
+	float ADDITION_1 = 0;
+	float currentState = 0;
+	int MULTIPLIER = 0;
+	int DIVIDER = 0;
+	int DIVIDER_N = 0;
+	int DIVIDER_E = 0;
+	int solutionNumber = 1;
+
+	const float INTERNAL_CLOCK = 25 * 1000000;
+	cout << "FRQ_INPUT: " << FREQUENCY << " MHz" << endl;
+	cout << "FREQUENCY_LOW: " << FREQUENCY_FULL_LOW << " MHz" << endl;
+	cout << "FREQUENCY_HIGH: " << FREQUENCY_FULL_HIGH << " MHz" << endl;
+	cout << "INT_CLOCK: " << INTERNAL_CLOCK << " MHz" << endl;
+	cout << "Expected_Solutions: " << solutionNumberLimit << endl;
+
+	float frequencySetting_LOW = FREQUENCY_FULL_LOW / INTERNAL_CLOCK;
+	float frequencySetting_HIGH = FREQUENCY_FULL_HIGH / INTERNAL_CLOCK;
+
+	cout << "SETTING_LOW : " << frequencySetting_LOW << endl;
+	cout << "SETTING_HIGH: " << frequencySetting_HIGH << endl;
+
+	cout << endl;
+	cout << endl;
+
+	for (int M = 15; M <= 90; M++)
+	{
+		for (int D = 4; D <= 900; D++)
+		{
+			for (int EN = 1; EN <= 300; EN++)
+			{
+				for (int ED = 1; ED <= 300; ED++)
+				{
+					int MULTIPLIER = M;
+					int DIVIDER = D;
+					int DIVIDER_N = EN;
+					int DIVIDER_E = ED;
+
+					//cout << " M: "  << M;
+					//cout << " D: "  << D;
+					//cout << " EN: " << EN;
+					//cout << " ED: " << ED << endl;
+
+					DIVISION_1 = DIVIDER_N / DIVIDER_E;
+					ADDITION_1 = DIVIDER + DIVISION_1;
+					currentState = MULTIPLIER / ADDITION_1;
+
+					//cout << "Setting found: " << currentState << endl;
+
+					if (currentState >= frequencySetting_LOW)
+					{
+						if (currentState <= frequencySetting_HIGH)
+						{
+							cout << "________________________________________________" << endl << endl;;
+							cout << "Solution Number: " << solutionNumber << endl;
+							cout << "Solving for: " << FREQUENCY << endl;
+							cout << "Setting found: " << currentState << endl;
+							cout << "Frequency found: " << currentState * INTERNAL_CLOCK << endl;
+							cout << "Solution: " << MULTIPLIER << " / " << DIVIDER << " + " << DIVIDER_N << " / " << DIVIDER_E << endl;
+							solutionNumber++;
+
+						}
+						if (solutionNumberLimit + 1 <= solutionNumber)
+						{
+							cout << "________________________________________________" << endl << endl;;
+							cout << "Solution Limit Reached" << endl;
+							system("PAUSE");
+						}
+					}
+				}
+			}
+		}
+	}
+}
