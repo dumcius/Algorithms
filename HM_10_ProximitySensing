@@ -1,1 +1,114 @@
 
+/*
+  Algorithm Written by Povilas Dumcius
+  2021-Mar-08
+
+  Program starts by sending AT+DISI? then waiting until a recognized MAC is found
+  if the scan is finished Hm10 will send AT+DISCE which
+  is then recgnized as data[8] or char 'E'. In this case the program sends AT+DISI? again
+*/
+
+#include <SoftwareSerial.h> // To use with arduino uno or nano etc...
+#define MAXDATA 78
+#define TIMEOUT 10
+
+#define BlueTooth Serial2
+
+//before sending command AT+DISI?
+// AT+IMME1 and AT+ROLE1 MUST be sent
+//to setup the HM10
+#define COMMAND "AT+DISI?"
+
+int prepare = 0;
+int myRSSI;
+long timeoutOver;
+char data[MAXDATA];
+int timeOut = 0;
+char FINDER = '4';
+
+void setup()
+{
+  Serial.begin(9600);
+  BlueTooth.begin(9600);
+  blueToothSend(COMMAND);
+  pinMode(13, OUTPUT);
+  delay(100);
+}
+
+void loop()
+{
+  boolean somethingReceived = false;
+  bool userIsNear = false;
+  int pos = 0;
+
+  if (BlueTooth.available())
+  {
+    somethingReceived = true;
+    do
+    {
+      while (BlueTooth.available())
+      {
+        data[min(pos, MAXDATA - 1)] = BlueTooth.read();
+        timeoutOver = millis() + TIMEOUT; pos++;
+      }
+    }
+    while (millis() < timeoutOver);
+    data[pos] = '\0';
+  }
+
+  if (somethingReceived)
+  {
+    // Do something
+    //println(data); // print raw data
+    Serial.print(".");
+
+    if (data[8] == FINDER)
+    {
+      Serial.println(" ");
+      char RSSI_ARRAY[6] = {data[75], data[76], data[77], data[78]}; //temporary buffer
+      String StringRSSI = RSSI_ARRAY; //convert char array to string object
+      int RSSI = StringRSSI.toInt();  //string object to int
+      int detectionThreshold = 80;    //set hysterisis
+
+      if (RSSI < detectionThreshold)
+      {
+        timeOut = 0;
+        LED(HIGH);
+        Serial.print("USER DETECTED: ");
+        Serial.println(RSSI); //negate and display
+      }
+      else if (RSSI > detectionThreshold)
+      {
+        Serial.println("USER LEFT");
+        LED(LOW);
+      }
+    }
+
+    //if AT+DISCE is received, figure that out by looking at 7th bit which should be 'E'
+    //then restart
+    if (data[7] == 'E')
+    {
+      somethingReceived = false;
+      int pos = 0;
+      prepare == 0;
+      //Serial.println("DEVICE STOPPED SCAN, RESTARTING");
+      delay(10);
+      blueToothSend(COMMAND);
+    }
+  }
+}
+
+void blueToothSend(String toSend)
+{
+  BlueTooth.print(toSend);
+}
+
+void terminalSend(String toSend)
+{
+  Serial.print(toSend);
+}
+
+void LED(bool State)
+{
+  digitalWrite(13, State);
+}
