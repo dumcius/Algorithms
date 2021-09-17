@@ -1,85 +1,176 @@
-
 ///..............................///
-   const int movementPitch = 250;
+//Controls the precision of both knobs, more or less movement 1-100 (units: arbitrary, no limit)
+const int bulk_Knob_Steps  = 100;
+const int prec_Knob_Steps =  5;
+
+//Time delay between High and Low coil states, default optimum at 600 (units: ms)
+const int movementPitch_BULK = 600;
+const int movementPitch_PREC = 600;
 ///..............................///
 
-#define CLK A2
-#define DATA A4
+//PRECISION Rotary
+#define CLK_2 A2
+#define DATA_2 A3
+//BULK Rotary
+#define CLK_1 A1
+#define DATA_1 A0
+//Stepper Motor Attachments
 #define dirPin 3
 #define stepPin 2
-
-static uint8_t prevNextCode = 0;
-static uint16_t store = 0;
+//Global variables
+static uint8_t prevNextCode_1 = 0;
+static uint16_t store_1 = 0;
+static uint8_t prevNextCode_2 = 0;
+static uint16_t store_2 = 0;
 String CW;
 String CCW;
+#define HEARTBEAT_LED 5
+
 
 void setup()
 {
-  pinMode(CLK, INPUT);
-  pinMode(CLK, INPUT_PULLUP);
-  pinMode(DATA, INPUT);
-  pinMode(DATA, INPUT_PULLUP);
-  Serial.begin (9600);
-  Serial.println("KY-040 Start:");
+  pinMode(CLK_1, INPUT);
+  pinMode(CLK_1, INPUT_PULLUP);
+  pinMode(DATA_1, INPUT);
+  pinMode(DATA_1, INPUT_PULLUP);
+  pinMode(CLK_2, INPUT);
+  pinMode(CLK_2, INPUT_PULLUP);
+  pinMode(DATA_2, INPUT);
+  pinMode(DATA_2, INPUT_PULLUP);
   pinMode(stepPin, OUTPUT);
   pinMode(dirPin, OUTPUT);
+  pinMode(HEARTBEAT_LED, OUTPUT);
 }
+
 
 void loop()
 {
-  static int8_t c, val;
+  readKnob_BULK();
+  readKnob_PREC();
+}
 
-  if ( val = read_rotary() )
+
+void readKnob_BULK()
+{
+  static int8_t c_1, val_1;
+
+  if (val_1 = read_rotary_BULK(DATA_1, CLK_1))
   {
-    c += val;
-    Serial.print(c); Serial.print(" ");
-
-    if ( prevNextCode == 0x0b)
+    c_1 += val_1;
+    if ( prevNextCode_1 == 0x0b)
     {
-      Serial.print("eleven ");
-      Serial.println(store, HEX);
+      Serial.println("Knob: BULK | Direction: RIGHT");
       digitalWrite(dirPin, HIGH);
-      for (unsigned int i = 0; i < movementPitch; i++)
+
+      for (unsigned int i = 0; i < bulkLoop ; i++)
       {
         digitalWrite(stepPin, HIGH);
-        delayMicroseconds(500);
+        delayMicroseconds(movementPitch_BULK);
         digitalWrite(stepPin, LOW);
-        delayMicroseconds(500);
+        delayMicroseconds(movementPitch_BULK);
       }
     }
-    if ( prevNextCode == 0x07)
+
+    if ( prevNextCode_1 == 0x07)
     {
-      Serial.print("seven ");
-      Serial.println(store, HEX);
+      Serial.println("Knob: BULK | Direction: LEFT");
       digitalWrite(dirPin, LOW);
-      for (unsigned int i = 0; i < movementPitch; i++)
+
+      for (unsigned int i = 0; i < bulkLoop ; i++)
       {
         digitalWrite(stepPin, HIGH);
-        delayMicroseconds(500);
+        delayMicroseconds(movementPitch_BULK);
         digitalWrite(stepPin, LOW);
-        delayMicroseconds(500);
+        delayMicroseconds(movementPitch_BULK);
       }
     }
   }
 }
 
-int8_t read_rotary()
+
+
+void readKnob_PREC()
 {
-  static int8_t rot_enc_table[] = {0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0};
+  static int8_t c_2, val_2;
 
-  prevNextCode <<= 2;
-  if (digitalRead(DATA)) prevNextCode |= 0x02;
-  if (digitalRead(CLK)) prevNextCode |= 0x01;
-  prevNextCode &= 0x0f;
-
-  if  (rot_enc_table[prevNextCode])
+  if (val_2 = read_rotary_PREC(DATA_2, CLK_2))
   {
-    store <<= 4;
-    store |= prevNextCode;
+    c_2 += val_2;
+    if ( prevNextCode_2 == 0x0b)
+    {
+      Serial.println("Knob: PREC | Direction: RIGHT");
+      digitalWrite(dirPin, HIGH);
+
+      for (unsigned int i = 0; i < precLoop ; i++)
+      {
+        digitalWrite(stepPin, HIGH);
+        delayMicroseconds(movementPitch_PREC);
+        digitalWrite(stepPin, LOW);
+        delayMicroseconds(movementPitch_PREC);
+      }
+    }
+
+    if ( prevNextCode_2 == 0x07)
+    {
+      Serial.println("Knob: PREC | Direction: LEFT");
+      digitalWrite(dirPin, LOW);
+      
+      for (unsigned int i = 0; i < precLoop ; i++)
+      {
+        digitalWrite(stepPin, HIGH);
+        delayMicroseconds(movementPitch_PREC);
+        digitalWrite(stepPin, LOW);
+        delayMicroseconds(movementPitch_PREC);
+      }
+    }
+  }
+}
+
+
+
+int8_t read_rotary_BULK(int DATA_1, int CLK_1)
+{
+  static int8_t rot_enc_table_1[] = {0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0};
+
+  prevNextCode_1 <<= 2;
+  if (digitalRead(DATA_1)) prevNextCode_1 |= 0x02;
+  if (digitalRead(CLK_1)) prevNextCode_1 |= 0x01;
+  prevNextCode_1 &= 0x0f;
+
+  if  (rot_enc_table_1[prevNextCode_1])
+  {
+    store_1 <<= 4;
+    store_1 |= prevNextCode_1;
     //if (store==0xd42b) return 1;
     //if (store==0xe817) return -1;
-    if ((store & 0xff) == 0x2b) return -1;
-    if ((store & 0xff) == 0x17) return 1;
+    if ((store_1 & 0xff) == 0x2b) return -1;
+    if ((store_1 & 0xff) == 0x17) return 1;
   }
   return 0;
 }
+
+
+int8_t read_rotary_PREC(int DATA_2, int CLK_2)
+{
+  static int8_t rot_enc_table_2[] = {0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0};
+
+  prevNextCode_2 <<= 2;
+  if (digitalRead(DATA_2)) prevNextCode_2 |= 0x02;
+  if (digitalRead(CLK_2)) prevNextCode_2 |= 0x01;
+  prevNextCode_2 &= 0x0f;
+
+  if  (rot_enc_table_2[prevNextCode_2])
+  {
+    store_2 <<= 4;
+    store_2 |= prevNextCode_2;
+    //if (store==0xd42b) return 1;
+    //if (store==0xe817) return -1;
+    if ((store_2 & 0xff) == 0x2b) return -1;
+    if ((store_2 & 0xff) == 0x17) return 1;
+  }
+  return 0;
+}
+
+
+
+
